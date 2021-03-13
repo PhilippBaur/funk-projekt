@@ -44,6 +44,7 @@ while True:
         print("\n" + initial_msg)
         break
 
+
 def listen_for_messages():
     while True:
         message = s.recv(1024).decode()
@@ -69,8 +70,8 @@ while True:
         break
     else:
         # add the datetime, name & the color of the sender
-        date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        to_send = f"{client_color}[{date_now}] {name}{separator_token}{to_send}{Fore.RESET}"
+        # date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        to_send = f"{name}{separator_token}{to_send}"
         # finally, send the message
         s.send(to_send.encode())
 
