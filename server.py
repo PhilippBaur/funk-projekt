@@ -6,6 +6,7 @@ SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 5002 # port we want to use
 separator_token = "<SEP>" # we will use this to separate the client name & message
 users = {}
+user_dict = {}
 
 # initialize list/set of all connected client's sockets
 client_sockets = set()
@@ -34,21 +35,39 @@ def listen_for_client(cs):
             # client no longer connected
             # remove it from the set
             print(f"[!] Error: {e}")
+            print(client_sockets)
             client_sockets.remove(cs)
         else:
             # if we received a message, replace the <SEP>
             # token with ": " for nice printing
+
             info = msg.split(separator_token)
-            msg = msg.replace(separator_token, ": ")
-            if info[1] == 'users':
+            if info[1].lower() == 'users':
+                #info[0] = von
+                #info[1] = nachricht
                 user_socket = users[info[0]]
                 usernames = ', '.join(list(users.keys()))
                 user_socket.send(usernames.encode())
-
-        # iterate over all connected sockets
-        # for client_socket in client_sockets:
-            # and send the message
-            # client_socket.send(msg.encode())
+            elif info[1].lower() == 'alle':
+                alle_user = [name for name in users.keys()]
+                user_dict[info[0]] = alle_user
+                user_socket = users[info[0]]
+                user_socket.send(f"Geben Sie Ihre Nachricht an alle ein".encode())
+            elif info[1].lower() in users.keys():
+                user_dict[info[0]] = [info[1]]
+                #users = {username: socket}
+                #user_dict[0] = von
+                #user_dict[1] = an
+                user_socket = users[info[0]]
+                user_socket.send(f"Geben Sie Ihre Nachricht an {user_dict[info[0]][0]} ein".encode())
+            else:
+                try:
+                    for name in user_dict[info[0]]:
+                        user_socket = users[name]
+                        user_socket.send(': '.join(info).encode())
+                except KeyError:
+                    user_socket = users[info[0]]
+                    user_socket.send("Bitte zuerst Empfänger der Nachricht eingeben!".encode())
 
 
 while True:
@@ -89,4 +108,3 @@ for cs in client_sockets:
     cs.close()
 # close server socket
 s.close()
-
