@@ -30,8 +30,6 @@ def listen_for_client(cs):
             # keep listening for a message from `cs` socket
             msg = cs.recv(1024).decode()
 
-            if msg[1] == 'users':
-                user = users[msg[0]]
         except Exception as e:
             # client no longer connected
             # remove it from the set
@@ -40,32 +38,50 @@ def listen_for_client(cs):
         else:
             # if we received a message, replace the <SEP>
             # token with ": " for nice printing
+            info = msg.split(separator_token)
             msg = msg.replace(separator_token, ": ")
+            if info[1] == 'users':
+                user_socket = users[info[0]]
+                usernames = ', '.join(list(users.keys()))
+                user_socket.send(usernames.encode())
+
         # iterate over all connected sockets
-        for client_socket in client_sockets:
+        # for client_socket in client_sockets:
             # and send the message
-            client_socket.send(msg.encode())
+            # client_socket.send(msg.encode())
 
 
 while True:
     # we keep listening for new connections all the time
     client_socket, client_address = s.accept()
-    print(f"[+] {client_address} connected.")
-    print(client_socket)
-
+    print(f"[+] {client_address} connected.")   
     # recieve username and save to dictionary users
     user = client_socket.recv(1024).decode()
-    if client_address not in users.values():
-        users[user] = client_address
+    if user in users.keys():
+        # schick ne nachricht zurück und sag der soll nen neuen Namen eingeben
+        client_socket.send("Name schon vergeben, bitte neuen Namen auswählen!\n"
+                           "Bitte melden Sie sich neu an.".encode())
+    else:
+        for usersocket in users.values():
+            usersocket.send(f"Nutzer >>{user}<< ist beigetreten UwU".encode())
 
-    # add the new connected client to connected sockets
-    client_sockets.add(client_socket)
-    # start a new thread that listens for each client's messages
-    t = Thread(target=listen_for_client, args=(client_socket,))
-    # make the thread daemon so it ends whenever the main thread ends
-    t.daemon = True
-    # start the thread
-    t.start()
+        usernames = ', '.join(list(users.keys()))
+        if not usernames:
+            client_socket.send("Du bist der Erste :)".encode())
+        else:
+            client_socket.send(f"Diese Nutzer sind bereits da:\n{usernames}".encode())
+
+        if client_socket not in users.values():
+            users[user] = client_socket
+
+        # add the new connected client to connected sockets
+        client_sockets.add(client_socket)
+        # start a new thread that listens for each client's messages
+        t = Thread(target=listen_for_client, args=(client_socket,))
+        # make the thread daemon so it ends whenever the main thread ends
+        t.daemon = True
+        # start the thread
+        t.start()
 
 
 # close client sockets
