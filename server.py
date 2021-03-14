@@ -26,21 +26,24 @@ def listen_for_client(cs):
     This function keep listening for a message from `cs` socket
     Whenever a message is received, broadcast it to all other connected clients
     """
+    global users
     while True:
         try:
             # keep listening for a message from `cs` socket
             msg = cs.recv(1024).decode()
-
         except Exception as e:
             # client no longer connected
             # remove it from the set
             print(f"[!] Error: {e}")
-            print(client_sockets)
             client_sockets.remove(cs)
+            username = [key for key,value in users.items() if value == cs]
+            users = {key:value for key,value in users.items() if value != cs}
+            for key, value in users.items():
+                value.send(f">>{username[0]}<< hat das Programm verlassen.".encode())
+            break
         else:
             # if we received a message, replace the <SEP>
             # token with ": " for nice printing
-
             info = msg.split(separator_token)
             if info[1].lower() == 'users':
                 #info[0] = von
@@ -53,7 +56,7 @@ def listen_for_client(cs):
                 user_dict[info[0]] = alle_user
                 user_socket = users[info[0]]
                 user_socket.send(f"Geben Sie Ihre Nachricht an alle ein".encode())
-            elif info[1].lower() in users.keys():
+            elif info[1] in users.keys():
                 user_dict[info[0]] = [info[1]]
                 #users = {username: socket}
                 #user_dict[0] = von
