@@ -1,10 +1,7 @@
-import os
-import sys
 import socket
 import random
 from threading import Thread
-from datetime import datetime
-from colorama import Fore, init, Back
+from colorama import Fore, init
 
 # init colors
 init()
