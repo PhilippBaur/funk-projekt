@@ -1,76 +1,88 @@
 import socket
-import random
 from threading import Thread
-from colorama import Fore, init
 
-# init colors
-init()
+# Ask if the user wants to specify a IP or if the user wants to connect to localhost
+decision = input("Enter 'l' to connect to localhost (default) or use 'o' to enter own IP address: ")
+if decision.strip() == 'o':
+    SERVER_HOST = input("Enter a Server IP in the given format xxx.xxx.xxx.xxx: ")
+else:
+    SERVER_HOST = "127.0.0.1"
 
-# set the available colors
-colors = [Fore.BLUE, Fore.CYAN, Fore.GREEN, Fore.LIGHTBLACK_EX,
-    Fore.LIGHTBLUE_EX, Fore.LIGHTCYAN_EX, Fore.LIGHTGREEN_EX,
-    Fore.LIGHTMAGENTA_EX, Fore.LIGHTRED_EX, Fore.LIGHTWHITE_EX,
-    Fore.LIGHTYELLOW_EX, Fore.MAGENTA, Fore.RED, Fore.WHITE, Fore.YELLOW
-]
+# Specify server port an separator token
+SERVER_PORT = 5002
+separator_token = "<SEP>"
 
-# choose a random color for the client
-client_color = random.choice(colors)
-
-# server's IP address
-# if the server is not on this machine,
-# put the private (network) IP address (e.g 192.168.1.2)
-SERVER_HOST = "127.0.0.1"
-SERVER_PORT = 5002 # server's port
-separator_token = "<SEP>" # we will use this to separate the client name & message
-
-while True:
-    # prompt the client for a name
-    name = input("Enter your name: ")
-    # initialize TCP socket
-    s = socket.socket()
-    print(f"[*] Connecting to {SERVER_HOST}:{SERVER_PORT}...")
-    # connect to the server
-    s.connect((SERVER_HOST, SERVER_PORT))
-    s.send(name.encode())
-
-    initial_msg = s.recv(1024).decode()
-    if initial_msg == "Name schon vergeben, bitte neuen Namen auswählen!\nBitte melden Sie sich neu an.":
-        pass
-    else:
-        print("[+] Connected.")
-        print("\n" + initial_msg)
-        break
-
-
-def listen_for_messages():
+# Try to connect to the server with the given IP
+try:
     while True:
-        message = s.recv(1024).decode()
-        print("\n" + message)
+        # Prompt the client for a name
+        name = input("Enter your name: ")
 
-# make a thread that listens for messages to this client & print them
-t = Thread(target=listen_for_messages)
-# make the thread daemon so it ends whenever the main thread ends
-t.daemon = True
-# start the thread
-t.start()
+        # Initialize TCP socket
+        s = socket.socket()
 
-while True:
-    # input message we want to send to the server
-    to_send = input()
+        # Try to connect to the server and send the username
+        print(f"[*] Trying to connect to {SERVER_HOST}:{SERVER_PORT}...")
+        s.connect((SERVER_HOST, SERVER_PORT))
+        s.send(name.encode())
 
-    if to_send.lower() == 'users':
-        to_send = f'{name}{separator_token}{to_send}'
-        s.send(to_send.encode())
+        # Get the response message from the server
+        initial_msg = s.recv(1024).decode()
 
-    # a way to exit the program
-    elif to_send.lower() == 'q':
-        break
-    else:
-        # add the datetime, name & the color of the sender
-        # date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        to_send = f"{name}{separator_token}{to_send}"
-        # finally, send the message
-        s.send(to_send.encode())
+        # If username is taken request new name
+        if initial_msg == "Username already used, please enter new username!\nYou will be logged in again.":
+            continue
 
-# close the socket
-s.close()
+        # If the connection is successful show the user the keywords of the server
+        else:
+            print("[+] Connected.")
+            print("-" * 25)
+            print(initial_msg)
+            print("-" * 25)
+            print("Keywords for this server:\n"
+                  "'users': Lists all active users.\n"
+                  "'all: Sends a message to all users.\n"
+                  "'q': Leaves the server and quits the program.")
+            print("-" * 25)
+            break
+
+
+    def listen_for_messages():
+        """
+        Function to listen for messages from the server and print them to the user
+        """
+        while True:
+            message = s.recv(1024).decode()
+
+            # If server returns the quit message, break the loop to quit the thread
+            if message == 'q':
+                break
+            print(message)
+
+
+    # Make a thread that listens for messages to this client & print them
+    t = Thread(target=listen_for_messages)
+    t.start()
+
+    while True:
+        # Input message we want to send to the server
+        to_send = input()
+
+        # Exit the program by typing 'q' and give the server the info that the user is leaving
+        if to_send.lower() == 'q':
+            to_send = f"{name}{separator_token}{to_send}"
+            s.send(to_send.encode())
+            break
+
+        # Send the message to the server in the format 'name<SEP>message'
+        else:
+            to_send = f"{name}{separator_token}{to_send}"
+            s.send(to_send.encode())
+
+    # Join the thread back to the main thread and close the socket
+    t.join()
+    s.close()
+
+# Very broad exception to catch every problem with the connection
+except:
+    print(f"Connection to server with IP {SERVER_HOST} failed.")
